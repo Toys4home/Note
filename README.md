@@ -2,10 +2,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام تسجيل الأفكار والملاحظات - الإصدار المتكامل</title>
+    <title>نظام تسجيل الأفكار والملاحظات - الإصدار المبدع</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #6a11cb;
@@ -684,22 +683,6 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
         }
         
-        /* Loading spinner */
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid var(--primary);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
         /* Responsive adjustments */
         @media (max-width: 1200px) {
             h1 {
@@ -903,7 +886,7 @@
                         <input type="file" id="media" accept="image/*,video/*">
                     </div>
                     
-                    <button type="submit" id="submitButton"><i class="fas fa-plus-circle"></i> إضافة الملاحظة</button>
+                    <button type="submit"><i class="fas fa-plus-circle"></i> إضافة الملاحظة</button>
                 </form>
             </section>
             
@@ -946,7 +929,7 @@
                 </div>
                 
                 <div id="recordsList">
-                    <div class="loader" id="loader"></div>
+                    <!-- سيتم عرض السجلات هنا -->
                 </div>
             </section>
         </div>
@@ -989,12 +972,6 @@
     </div>
 
     <script>
-        // تهيئة Supabase
-        const SUPABASE_URL = 'https://your-project.supabase.co';
-        const SUPABASE_ANON_KEY = 'your-anon-key';
-        
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
         // صور افتراضية للموظفين (يمكن استبدالها بالصور الحقيقية)
         const employeeAvatars = {
             'حسن عز': 'https://randomuser.me/api/portraits/men/32.jpg',
@@ -1033,15 +1010,13 @@
             const modalSubmitCode = document.getElementById('modalSubmitCode');
             const closeAccessModal = document.getElementById('closeAccessModal');
             const fabButton = document.getElementById('fabButton');
-            const loader = document.getElementById('loader');
-            const submitButton = document.getElementById('submitButton');
             
             // تحميل السجلات المحفوظة عند بدء التشغيل
             loadRecords();
             updateStats();
             
             // إضافة سجل جديد
-            recordForm.addEventListener('submit', async function(e) {
+            recordForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
                 const employee = document.getElementById('employee').value;
@@ -1053,60 +1028,17 @@
                     return;
                 }
                 
-                // تغيير نص الزر لإظهار التحميل
-                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإضافة...';
-                submitButton.disabled = true;
-                
-                let mediaUrl = null;
-                let mediaType = null;
-                
                 if (mediaFile) {
-                    // رفع الملف إلى التخزين السحابي لـ Supabase
-                    const fileExt = mediaFile.name.split('.').pop();
-                    const fileName = `${Math.random()}.${fileExt}`;
-                    const { data, error } = await supabase.storage
-                        .from('media')
-                        .upload(fileName, mediaFile);
-                    
-                    if (error) {
-                        console.error('Error uploading file:', error);
-                        alert('حدث خطأ أثناء رفع الملف');
-                    } else {
-                        // الحصول على رابط الملف
-                        const { data: { publicUrl } } = supabase.storage
-                            .from('media')
-                            .getPublicUrl(fileName);
-                        
-                        mediaUrl = publicUrl;
-                        mediaType = mediaFile.type;
-                    }
-                }
-                
-                // إضافة السجل إلى قاعدة البيانات
-                const { data, error } = await supabase
-                    .from('records')
-                    .insert([
-                        { 
-                            employee: employee, 
-                            content: content, 
-                            media: mediaUrl,
-                            media_type: mediaType
-                        }
-                    ]);
-                
-                if (error) {
-                    console.error('Error adding record:', error);
-                    alert('حدث خطأ أثناء إضافة الملاحظة');
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        addRecord(employee, content, e.target.result, mediaFile.type);
+                    };
+                    reader.readAsDataURL(mediaFile);
                 } else {
-                    // إعادة تحميل السجلات
-                    loadRecords();
-                    updateStats();
-                    recordForm.reset();
+                    addRecord(employee, content);
                 }
                 
-                // إعادة تعيين الزر
-                submitButton.innerHTML = '<i class="fas fa-plus-circle"></i> إضافة الملاحظة';
-                submitButton.disabled = false;
+                recordForm.reset();
             });
             
             // تطبيق الفلاتر
@@ -1168,57 +1100,64 @@
                 modalAccessCode.focus();
             });
             
+            // دالة لإضافة سجل جديد
+            function addRecord(employee, content, mediaData = null, mediaType = null) {
+                const records = getRecords();
+                const now = new Date();
+                const newRecord = {
+                    id: Date.now(),
+                    employee: employee,
+                    content: content,
+                    date: now.toLocaleString('ar-EG'),
+                    timestamp: now.getTime(),
+                    media: mediaData,
+                    mediaType: mediaType
+                };
+                
+                records.unshift(newRecord);
+                localStorage.setItem('employeeRecords', JSON.stringify(records));
+                loadRecords();
+                updateStats();
+            }
+            
             // دالة لتحميل السجلات
-            async function loadRecords() {
-                loader.style.display = 'block';
-                recordsList.innerHTML = '';
-                
-                let query = supabase
-                    .from('records')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                // تطبيق فلتر الموظف
+            function loadRecords() {
+                const records = getRecords();
+                const searchTerm = searchInput.value;
                 const employeeValue = employeeFilter.value;
-                if (employeeValue) {
-                    query = query.eq('employee', employeeValue);
-                }
-                
-                // تطبيق فلتر التاريخ
                 const dateValue = dateFilter.value;
-                if (dateValue) {
-                    const startDate = new Date(dateValue);
-                    const endDate = new Date(dateValue);
-                    endDate.setDate(endDate.getDate() + 1);
-                    
-                    query = query.gte('created_at', startDate.toISOString())
-                                 .lt('created_at', endDate.toISOString());
-                }
                 
-                const { data: records, error } = await query;
-                
-                loader.style.display = 'none';
-                
-                if (error) {
-                    console.error('Error loading records:', error);
-                    recordsList.innerHTML = '<p class="no-records">حدث خطأ أثناء تحميل البيانات</p>';
-                    return;
-                }
-                
-                if (!records || records.length === 0) {
+                if (records.length === 0) {
                     recordsList.innerHTML = '<p class="no-records">لا توجد أفكار أو ملاحظات مسجلة بعد.</p>';
                     return;
                 }
                 
-                // تطبيق فلتر النص
-                const searchTerm = searchInput.value;
                 let filteredRecords = records;
                 
+                // تطبيق فلتر النص
                 if (searchTerm) {
                     filteredRecords = filteredRecords.filter(record => 
                         record.content.includes(searchTerm)
                     );
                 }
+                
+                // تطبيق فلتر الموظف
+                if (employeeValue) {
+                    filteredRecords = filteredRecords.filter(record => 
+                        record.employee === employeeValue
+                    );
+                }
+                
+                // تطبيق فلتر التاريخ
+                if (dateValue) {
+                    const selectedDate = new Date(dateValue);
+                    filteredRecords = filteredRecords.filter(record => {
+                        const recordDate = new Date(record.timestamp);
+                        return recordDate.toDateString() === selectedDate.toDateString();
+                    });
+                }
+                
+                recordsList.innerHTML = '';
                 
                 if (filteredRecords.length === 0) {
                     recordsList.innerHTML = '<p class="no-records">لا توجد نتائج تطابق معايير البحث.</p>';
@@ -1231,11 +1170,11 @@
                     
                     let mediaHTML = '';
                     if (record.media) {
-                        const isImage = record.media_type.startsWith('image');
+                        const isImage = record.mediaType.startsWith('image');
                         if (hasAccess) {
                             mediaHTML = `
                                 <div class="record-media">
-                                    <div class="media-item" onclick="openMedia('${record.media}', '${record.media_type}')">
+                                    <div class="media-item" onclick="openMedia('${record.media}', '${record.mediaType}')">
                                         ${isImage ? 
                                             `<img src="${record.media}" alt="Media">` : 
                                             `<video src="${record.media}"></video>`
@@ -1273,17 +1212,13 @@
                             </div>
                         </div>`;
                     
-                    // تحويل التاريخ إلى التوقيت المحلي
-                    const recordDate = new Date(record.created_at);
-                    const formattedDate = recordDate.toLocaleString('ar-EG');
-                    
                     recordElement.innerHTML = `
                         <div class="record-header">
                             <div class="employee-info">
                                 <img class="employee-avatar" src="${employeeAvatars[record.employee]}" alt="${record.employee}">
                                 <div class="employee-details">
                                     <span class="employee-name">${record.employee}</span>
-                                    <span class="record-date">${formattedDate}</span>
+                                    <span class="record-date">${record.date}</span>
                                 </div>
                             </div>
                         </div>
@@ -1294,34 +1229,26 @@
                 });
             }
             
+            // دالة للحصول على السجلات من localStorage
+            function getRecords() {
+                return JSON.parse(localStorage.getItem('employeeRecords') || '[]');
+            }
+            
             // دالة لتحديث الإحصائيات
-            async function updateStats() {
+            function updateStats() {
+                const records = getRecords();
                 const now = new Date();
                 const currentMonth = now.getMonth();
                 const currentYear = now.getFullYear();
                 
-                const startOfMonth = new Date(currentYear, currentMonth, 1);
-                const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+                totalRecords.textContent = records.length;
                 
-                // الحصول على إجمالي عدد السجلات
-                const { count: totalCount, error: totalError } = await supabase
-                    .from('records')
-                    .select('*', { count: 'exact', head: true });
+                const monthRecordsCount = records.filter(record => {
+                    const recordDate = new Date(record.timestamp);
+                    return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+                }).length;
                 
-                if (!totalError) {
-                    totalRecords.textContent = totalCount || 0;
-                }
-                
-                // الحصول على عدد سجلات الشهر الحالي
-                const { count: monthCount, error: monthError } = await supabase
-                    .from('records')
-                    .select('*', { count: 'exact', head: true })
-                    .gte('created_at', startOfMonth.toISOString())
-                    .lte('created_at', endOfMonth.toISOString());
-                
-                if (!monthError) {
-                    monthRecords.textContent = monthCount || 0;
-                }
+                monthRecords.textContent = monthRecordsCount;
             }
             
             // دالة لفتح الوسائط في Modal

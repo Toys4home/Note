@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -833,6 +834,67 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--secondary);
         }
+
+        /* New styles for the added features */
+        .record-status {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+            gap: 10px;
+        }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-approved {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-rejected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: flex-end;
+        }
+        
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            width: auto;
+        }
+        
+        .btn-approve {
+            background: linear-gradient(to right, var(--success), #20c997);
+        }
+        
+        .btn-reject {
+            background: linear-gradient(to right, var(--danger), #e4606d);
+        }
+        
+        .category-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            background-color: rgba(106, 17, 203, 0.1);
+            color: var(--primary);
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -877,6 +939,20 @@
                     </div>
                     
                     <div class="form-group">
+                        <label for="category">فئة الملاحظة:</label>
+                        <select id="category" required>
+                            <option value="">اختر الفئة</option>
+                            <option value="موقع و ابلكيشن">موقع و ابلكيشن</option>
+                            <option value="اودو">اودو</option>
+                            <option value="التوصيل">التوصيل</option>
+                            <option value="المبيعات">المبيعات</option>
+                            <option value="السوشيال ميديا">السوشيال ميديا</option>
+                            <option value="المخزن">المخزن</option>
+                            <option value="المحل">المحل</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
                         <label for="content">الفكرة أو الملاحظة:</label>
                         <textarea id="content" placeholder="اكتب فكرتك أو ملاحظتك هنا..." required></textarea>
                     </div>
@@ -914,6 +990,30 @@
                             <option value="علاء">علاء</option>
                             <option value="عبدالرحمن">عبدالرحمن</option>
                             <option value="عصمت">عصمت</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="categoryFilter">تصفية حسب الفئة:</label>
+                        <select id="categoryFilter">
+                            <option value="">جميع الفئات</option>
+                            <option value="موقع و ابلكيشن">موقع و ابلكيشن</option>
+                            <option value="اودو">اودو</option>
+                            <option value="التوصيل">التوصيل</option>
+                            <option value="المبيعات">المبيعات</option>
+                            <option value="السوشيال ميديا">السوشيال ميديا</option>
+                            <option value="المخزن">المخزن</option>
+                            <option value="المحل">المحل</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="statusFilter">تصفية حسب الحالة:</label>
+                        <select id="statusFilter">
+                            <option value="">جميع الحالات</option>
+                            <option value="pending">قيد المراجعة</option>
+                            <option value="approved">مقبولة</option>
+                            <option value="rejected">مرفوضة</option>
                         </select>
                     </div>
                     
@@ -987,12 +1087,15 @@
         // حالة الوصول إلى المحتوى
         let hasAccess = false;
         const SECRET_CODE = "toys506070";
+        const ADMIN_PASSWORD = "admin123"; // كلمة مرور المسؤول
 
         document.addEventListener('DOMContentLoaded', function() {
             const recordForm = document.getElementById('recordForm');
             const recordsList = document.getElementById('recordsList');
             const searchInput = document.getElementById('searchInput');
             const employeeFilter = document.getElementById('employeeFilter');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const statusFilter = document.getElementById('statusFilter');
             const dateFilter = document.getElementById('dateFilter');
             const applyFilters = document.getElementById('applyFilters');
             const resetFilters = document.getElementById('resetFilters');
@@ -1020,22 +1123,23 @@
                 e.preventDefault();
                 
                 const employee = document.getElementById('employee').value;
+                const category = document.getElementById('category').value;
                 const content = document.getElementById('content').value;
                 const mediaFile = mediaInput.files[0];
                 
-                if (!employee || !content) {
-                    alert('يرجى اختيار اسم الموظف وكتابة الفكرة أو الملاحظة');
+                if (!employee || !category || !content) {
+                    alert('يرجى اختيار اسم الموظف والفئة وكتابة الفكرة أو الملاحظة');
                     return;
                 }
                 
                 if (mediaFile) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        addRecord(employee, content, e.target.result, mediaFile.type);
+                        addRecord(employee, category, content, e.target.result, mediaFile.type);
                     };
                     reader.readAsDataURL(mediaFile);
                 } else {
-                    addRecord(employee, content);
+                    addRecord(employee, category, content);
                 }
                 
                 recordForm.reset();
@@ -1050,6 +1154,8 @@
             resetFilters.addEventListener('click', function() {
                 searchInput.value = '';
                 employeeFilter.value = '';
+                categoryFilter.value = '';
+                statusFilter.value = '';
                 dateFilter.value = '';
                 loadRecords();
             });
@@ -1101,17 +1207,19 @@
             });
             
             // دالة لإضافة سجل جديد
-            function addRecord(employee, content, mediaData = null, mediaType = null) {
+            function addRecord(employee, category, content, mediaData = null, mediaType = null) {
                 const records = getRecords();
                 const now = new Date();
                 const newRecord = {
                     id: Date.now(),
                     employee: employee,
+                    category: category,
                     content: content,
                     date: now.toLocaleString('ar-EG'),
                     timestamp: now.getTime(),
                     media: mediaData,
-                    mediaType: mediaType
+                    mediaType: mediaType,
+                    status: 'pending' // الحالة الافتراضية: قيد المراجعة
                 };
                 
                 records.unshift(newRecord);
@@ -1125,6 +1233,8 @@
                 const records = getRecords();
                 const searchTerm = searchInput.value;
                 const employeeValue = employeeFilter.value;
+                const categoryValue = categoryFilter.value;
+                const statusValue = statusFilter.value;
                 const dateValue = dateFilter.value;
                 
                 if (records.length === 0) {
@@ -1137,7 +1247,7 @@
                 // تطبيق فلتر النص
                 if (searchTerm) {
                     filteredRecords = filteredRecords.filter(record => 
-                        record.content.includes(searchTerm)
+                        record.content.includes(searchTerm) || record.employee.includes(searchTerm)
                     );
                 }
                 
@@ -1145,6 +1255,20 @@
                 if (employeeValue) {
                     filteredRecords = filteredRecords.filter(record => 
                         record.employee === employeeValue
+                    );
+                }
+                
+                // تطبيق فلتر الفئة
+                if (categoryValue) {
+                    filteredRecords = filteredRecords.filter(record => 
+                        record.category === categoryValue
+                    );
+                }
+                
+                // تطبيق فلتر الحالة
+                if (statusValue) {
+                    filteredRecords = filteredRecords.filter(record => 
+                        record.status === statusValue
                     );
                 }
                 
@@ -1167,6 +1291,13 @@
                 filteredRecords.forEach(record => {
                     const recordElement = document.createElement('div');
                     recordElement.classList.add('record-card');
+                    
+                    // تحديد لون البطاقة حسب الحالة
+                    if (record.status === 'approved') {
+                        recordElement.style.borderLeftColor = 'var(--success)';
+                    } else if (record.status === 'rejected') {
+                        recordElement.style.borderLeftColor = 'var(--danger)';
+                    }
                     
                     let mediaHTML = '';
                     if (record.media) {
@@ -1202,6 +1333,31 @@
                         }
                     }
                     
+                    // نص الحالة
+                    let statusText = '';
+                    if (record.status === 'pending') {
+                        statusText = '<span class="status-badge status-pending">قيد المراجعة</span>';
+                    } else if (record.status === 'approved') {
+                        statusText = '<span class="status-badge status-approved">مقبولة</span>';
+                    } else if (record.status === 'rejected') {
+                        statusText = '<span class="status-badge status-rejected">مرفوضة</span>';
+                    }
+                    
+                    // أزرار الإدارة (تظهر فقط للمستخدمين المصرح لهم)
+                    let adminButtons = '';
+                    if (hasAccess) {
+                        adminButtons = `
+                            <div class="admin-actions">
+                                <button class="btn-small btn-approve" onclick="updateRecordStatus(${record.id}, 'approved')">
+                                    <i class="fas fa-check"></i> قبول
+                                </button>
+                                <button class="btn-small btn-reject" onclick="updateRecordStatus(${record.id}, 'rejected')">
+                                    <i class="fas fa-times"></i> رفض
+                                </button>
+                            </div>
+                        `;
+                    }
+                    
                     const contentHTML = hasAccess ? 
                         `<div class="record-content">${record.content}</div>` :
                         `<div class="record-content protected-content">
@@ -1217,13 +1373,17 @@
                             <div class="employee-info">
                                 <img class="employee-avatar" src="${employeeAvatars[record.employee]}" alt="${record.employee}">
                                 <div class="employee-details">
-                                    <span class="employee-name">${record.employee}</span>
+                                    <span class="employee-name">${record.employee} <span class="category-badge">${record.category}</span></span>
                                     <span class="record-date">${record.date}</span>
                                 </div>
+                            </div>
+                            <div class="record-status">
+                                ${statusText}
                             </div>
                         </div>
                         ${contentHTML}
                         ${mediaHTML}
+                        ${adminButtons}
                     `;
                     recordsList.appendChild(recordElement);
                 });
@@ -1233,6 +1393,23 @@
             function getRecords() {
                 return JSON.parse(localStorage.getItem('employeeRecords') || '[]');
             }
+            
+            // دالة لتحديث حالة السجل
+            window.updateRecordStatus = function(id, status) {
+                if (!hasAccess) {
+                    alert('يجب أن يكون لديك صلاحية للقيام بهذا الإجراء');
+                    return;
+                }
+                
+                const records = getRecords();
+                const recordIndex = records.findIndex(record => record.id === id);
+                
+                if (recordIndex !== -1) {
+                    records[recordIndex].status = status;
+                    localStorage.setItem('employeeRecords', JSON.stringify(records));
+                    loadRecords();
+                }
+            };
             
             // دالة لتحديث الإحصائيات
             function updateStats() {
